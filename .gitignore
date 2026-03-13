@@ -1,0 +1,5 @@
+upload_log.json
+error.log
+temp_test.png
+__pycache__/
+*.pyc
