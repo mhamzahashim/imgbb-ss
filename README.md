@@ -16,7 +16,9 @@ No manual uploading. No browser tabs. Just screenshot and paste the link.
 
 - **Instant clipboard replacement** — screenshot → image link in ~2-3 seconds
 - **Runs silently** — no console window, no tray icon clutter
-- **Auto-start on boot** — place in Windows Startup folder and forget about it
+- **Auto-restart on crash** — `launcher.pyw` monitors the uploader and restarts it automatically if it exits
+- **Auto-start on boot** — VBS startup script launches the uploader silently on login
+- **Duplicate detection** — skips re-uploading the same screenshot (Windows Snipping Tool sometimes triggers the clipboard twice)
 - **Upload history** — all links saved to `upload_log.json` with timestamps
 - **Free hosting** — uses ImgBB's free API (32 MB max per image)
 - **Lightweight** — minimal CPU/memory usage, polls clipboard every 0.5 seconds
@@ -48,20 +50,28 @@ IMGBB_API_KEY = "YOUR_API_KEY_HERE"
 
 ### 4. Run
 
-**Double-click** `uploader.pyw` — it runs silently in the background.
+**Double-click** `launcher.pyw` — it starts the uploader silently and auto-restarts it if it ever crashes.
 
 Or from the command line:
 
 ```bash
-pythonw uploader.pyw
+pythonw launcher.pyw
 ```
 
 ### 5. Auto-Start on Login (Optional)
 
 1. Press `Win+R` → type `shell:startup` → Enter
-2. Copy `uploader.pyw` into the Startup folder
+2. Create a file called `screenshot-uploader.vbs` in the Startup folder with this content:
 
-The script will now run automatically every time you log in.
+```vbs
+Set WshShell = CreateObject("WScript.Shell")
+WshShell.CurrentDirectory = "C:\path\to\imgbb-ss"
+WshShell.Run "pythonw ""C:\path\to\imgbb-ss\launcher.pyw""", 0, False
+```
+
+Replace `C:\path\to\imgbb-ss` with the actual path where you cloned the repo.
+
+The uploader will now start silently on every login and auto-restart on crash.
 
 ## Usage
 
@@ -91,7 +101,8 @@ All uploads are logged to `upload_log.json`:
 | Clipboard still has image, not link | Wait 2-3 seconds after taking the screenshot |
 | Upload fails | Check your internet connection and ImgBB API key |
 | Script crashes on startup | Run `python uploader.pyw` in a terminal to see errors |
-| Check logs | Look at `error.log` in the script directory |
+| Script keeps crashing | Check `error.log` — if it crashes 5 times in 60s, the launcher backs off for 60s before retrying |
+| Check logs | Look at `error.log` in the script directory (launcher events are prefixed with `[launcher]`) |
 
 ## Requirements
 

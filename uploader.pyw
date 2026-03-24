@@ -5,6 +5,7 @@ import io
 import json
 import base64
 import ctypes
+import hashlib
 import traceback
 import requests
 from PIL import ImageGrab
@@ -73,8 +74,12 @@ def upload(image):
         # Save to log
         log = []
         if os.path.exists(UPLOAD_LOG):
-            with open(UPLOAD_LOG, "r") as f:
-                log = json.load(f)
+            try:
+                with open(UPLOAD_LOG, "r") as f:
+                    log = json.load(f)
+            except (json.JSONDecodeError, ValueError):
+                log_error("upload_log.json corrupted, starting fresh")
+                log = []
         log.append({"link": link, "delete_url": d["data"]["delete_url"], "at": time.strftime("%Y-%m-%d %H:%M:%S")})
         with open(UPLOAD_LOG, "w") as f:
             json.dump(log, f, indent=2)
@@ -92,6 +97,8 @@ def show_toast(link):
 def main():
     log_error("Script started")
     last_seq = get_clipboard_seq()
+    last_img_hash = None
+    last_upload_time = 0
 
     while True:
         try:
@@ -105,9 +112,18 @@ def main():
             if img is None:
                 continue
 
+            # Deduplicate: skip if same image was just uploaded
+            img_hash = hashlib.md5(img.tobytes()).hexdigest()
+            now = time.time()
+            if img_hash == last_img_hash and (now - last_upload_time) < 10:
+                log_error(f"Skipped duplicate (same image within {now - last_upload_time:.1f}s)")
+                continue
+
             log_error("Image detected, uploading...")
             link = upload(img)
             if link:
+                last_img_hash = img_hash
+                last_upload_time = time.time()
                 ok = set_clipboard_text(link)
                 time.sleep(0.2)
                 last_seq = get_clipboard_seq()
